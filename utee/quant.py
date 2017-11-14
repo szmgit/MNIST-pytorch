@@ -6,26 +6,26 @@ import math
 from IPython import embed
 
 def compute_integral_part(input, overflow_rate):
-    abs_value = input.abs().view(-1)
-    sorted_value = abs_value.sort(dim=0, descending=True)[0]
-    split_idx = int(overflow_rate * len(sorted_value))
-    v = sorted_value[split_idx]
-    if isinstance(v, Variable):
-        v = v.data.cpu().numpy()[0]
-    sf = math.ceil(math.log(v+1e-12, 2))  #log2
+    abs_value = input.abs().view(-1)    # 取绝对值，维度拉成一维
+    sorted_value = abs_value.sort(dim=0, descending=True)[0]    # 降序排列
+    split_idx = int(overflow_rate * len(sorted_value))    # 溢出率，默认为0，split_idx=0；len()：给出总数，split_idx溢出值下标
+    v = sorted_value[split_idx]    # 默认时，取的是最大值
+    if isinstance(v, Variable):    # 判断类型
+        v = v.data.cpu().numpy()[0]    # ???
+    sf = math.ceil(math.log(v+1e-12, 2))  #log2->log(x,2)  log2(v),小量应该是为了避免v=0的情况；ceil()向上取整
     return sf
 
 def linear_quantize(input, sf, bits):
-    assert bits >= 1, bits
+    assert bits >= 1, bits    # bits >=1 
     if bits == 1:
-        return torch.sign(input) - 1
-    delta = math.pow(2.0, -sf)
+        return torch.sign(input) - 1    # -1,1    -2,0 ??? 再减一???
+    delta = math.pow(2.0, -sf)     # 2^-sf
     bound = math.pow(2.0, bits-1)
-    min_val = - bound
-    max_val = bound - 1
-    rounded = torch.floor(input / delta + 0.5)
+    min_val = - bound    # 最小值
+    max_val = bound - 1    # 最大值
+    rounded = torch.floor(input / delta + 0.5)    # input x 最大值（溢出值）+0.5，向下取整；将一个浮点数线性的量化成整形数； 
 
-    clipped_value = torch.clamp(rounded, min_val, max_val) * delta
+    clipped_value = torch.clamp(rounded, min_val, max_val) * delta    # 控制在最大值和最小值范围内
     return clipped_value
 
 def log_minmax_quantize(input, bits):
